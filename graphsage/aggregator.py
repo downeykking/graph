@@ -1,68 +1,49 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import torch.nn.init as init
 
-import numpy as np
 
-"""
-Set of modules for aggregating embeddings of neighbors.
-"""
-
-class MeanAggregator(nn.Module):
-    """
-    Aggregates a node's embeddings using mean of neighbors' embeddings
-    """
-    def __init__(self, gcn=False): 
+class NeighborAggregator(nn.Module):  # 继承了nn.Module，具有可学习的参数
+    def __init__(self, input_dim, output_dim, use_bias=False, aggr_neighbor_method="mean"):
+        """聚合节点邻居
+        Args:
+            input_dim: 输入特征的维度
+            output_dim: 输出特征的维度
+            use_bias: 是否使用偏置 (default: {False})
+            aggr_neighbor_method: 邻居聚合方式 (default: {mean})--3种可选择的方式，不包括paper中的LSTM方法
         """
-        Initializes the aggregator for a specific graph.
-        embedding -- function mapping LongTensor of node ids to FloatTensor of feature values.
-        cuda -- whether to use GPU
-        gcn --- whether to perform concatenation GraphSAGE-style, or add self-loops GCN-style
-        """
+        super(NeighborAggregator, self).__init__()  # 继承父类的方法、属性
+        # 形参初始化
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.use_bias = use_bias
+        self.aggr_neighbor_method = aggr_neighbor_method
+       
 
-        super(MeanAggregator, self).__init__()
-
-        self.gcn = gcn
-        
-    def forward(self, nodes, adj_list, embedding, num_sample=10):
+    def forward(self, neighbor_feature):
         """
-        nodes --- list of nodes in a batch
-        adj_list --- list of sets, each set is the set of neighbors for node in batch
-        num_sample --- number of neighbors to sample. No sampling if None.
+        前向传播
+        Args:
+            neighbor_feature:需要聚合的邻居节点特征(num_src,num_neigh,input_dim)--(源节点数量,邻居数量,input_dim)
+        Returns:
+            aggr_neighbor:聚合后的消息，用于更新节点的嵌入表示(num_src,output_dim)
         """
-        samp_neighs = []
-        if not num_sample is None:
-            for nid in nodes:
-                # 如果邻居>num_sample无放回 邻居<num_sample 放回
-                if len(adj_list[nid])>=num_sample:
-                    res = np.random.choice(adj_list[nid], size=(num_sample, ), replace=False)
-                else:
-                    res = np.random.choice(adj_list[nid], size=(num_sample, ), replace=True)
-                samp_neighs.append(set(res))
+        if self.aggr_neighbor_method == "mean":
+            aggr_neighbor = neighbor_feature.mean(dim=1)  # 对第1维num_neigh进行聚合
+        elif self.aggr_neighbor_method == "sum":
+            aggr_neighbor = neighbor_feature.sum(dim=1)
+        elif self.aggr_neighbor_method == "max":
+            aggr_neighbor, _ = neighbor_feature.max(dim=1)
         else:
-            samp_neighs = adj_list
+            raise ValueError("Unknown aggr type, expected sum, max, or mean, but got {}".format(self.aggr_neighbor_method))
 
-        # 添加自环
-        if self.gcn:
-            samp_neighs = [samp_neigh | set([nodes[i]]) for i, samp_neigh in enumerate(samp_neighs)]
-        # 生成所有邻居节点，方便后面查embed
-        unique_nodes_list = list(set.union(*samp_neighs))
-        
-        unique_nodes_map = {n:i for i,n in enumerate(unique_nodes_list)}
-        
-        # mask用来最后对应nodes含有哪些邻接节点
-        mask =torch.zeros(len(nodes), len(unique_nodes_map),requires_grad=True)
-        
-        row_indices = [i for i in range(len(samp_neighs)) for j in range(len(samp_neighs[i]))]
-        column_indices = [unique_nodes_map[n] for samp_neigh in samp_neighs for n in samp_neigh]   
-        
-        mask[row_indices, column_indices] = 1
+        return aggr_neighbor # (num_src,input_dim)
 
-        num_neigh = mask.sum(1, keepdim=True)
-        # mean操作
-        mask = torch.div(mask, num_neigh)
-        # (neibors, )(2708, 1443) (neibors, 1443)
-        embed_matrix = embedding(unique_nodes_list)
 
-        # (nodes, neibors) (neibors, 1443) ->  (nodes, 1443)
-        to_feats = torch.mm(mask, embed_matrix)
-        return to_feats
+    def extra_repr(self):
+        """
+        Returns:返回参数字符串
+        """
+        return "in_features={}, out_features={}, aggr_neighbor_method={}".format(
+            self.input_dim, self.output_dim, self.aggr_neighbor_method)

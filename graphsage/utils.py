@@ -31,29 +31,20 @@ def load_data(path="../dataset/cora/", dataset="cora"):
     edges = edges.iloc[:,0:2].values.flatten('F').reshape(2, -1)
     
     # 获得每个节点的邻居{v0:[v0的邻居集合],v1:[v1的邻居集合]}
-    adj_lists = defaultdict(list)
+    adj_lists = defaultdict(set)
     for i in range(edges.shape[1]):
-        adj_lists[edges[0][i]].append(edges[1][i])
-        adj_lists[edges[1][i]].append(edges[0][i])
-        
-    print(adj_lists)
-    
-    
-    
-    # # 稀疏格式邻接表表示邻接矩阵 单向
-    # adj = sp.coo_matrix((np.ones(edges.shape[1]), (edges[0, :], edges[1, :])),
-    #                     shape=(labels.shape[0], labels.shape[0]),
-    #                     dtype=np.float32)
-    
-    
-    # # 构建对称邻接矩阵
-    # adj = adj + adj.T.multiply(adj.T > adj) - adj.multiply(adj.T > adj)
+        adj_lists[edges[0][i]].add(edges[1][i])
+        adj_lists[edges[1][i]].add(edges[0][i])
     
     features = normalize_features(features)
     
-    idx_train = range(140)
-    idx_val = range(200, 500)
-    idx_test = range(500, 1500)
+    # idx_train = range(140)
+    # idx_val = range(200, 500)
+    # idx_test = range(500, 1500)
+    rand_indices = np.random.permutation(len(adj_lists))
+    idx_test = rand_indices[:1000]
+    idx_val = rand_indices[1000:1500]
+    idx_train = list(rand_indices[1500:])
 
     # adj = sparse_mx_to_torch_sparse_tensor(adj)
     features = torch.FloatTensor(np.array(features.todense()))
@@ -121,6 +112,3 @@ def visualize(h, color, model_name):
     plt.scatter(z[:, 0], z[:, 1], s=70, c=color.cpu().numpy(), cmap="Set2")
     plt.show()
     plt.savefig("{}.jpg".format(model_name))
-    
-    
-load_data()
