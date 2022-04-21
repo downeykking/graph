@@ -30,6 +30,11 @@ def load_data(path="../dataset/cora/", dataset="cora"):
     # 将edges转为[2, edge]的形式
     edges = edges.iloc[:,0:2].values.flatten('F').reshape(2, -1)
     
+    # 另一方法
+    # row = edges.iloc[:,0:2].values[:, 0]
+    # col = edges.iloc[:,0:2].values[:, 1]
+    # edges = np.stack([row, col], axis=0)
+    
     # 获得每个节点的邻居{v0:[v0的邻居集合],v1:[v1的邻居集合]}
     adj_lists = defaultdict(set)
     for i in range(edges.shape[1]):

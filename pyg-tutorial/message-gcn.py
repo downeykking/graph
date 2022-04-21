@@ -53,7 +53,7 @@ class GCNConv(MessagePassing):
         deg_inv_sqrt = deg.pow(-0.5)
 
         # norm (E, )
-        # deg_inv_sqrt[row] 表示 row中edge在deg中node的位置
+        # deg_inv_sqrt[row] 表示 row中对应节点在deg中node的位置
         norm = deg_inv_sqrt[row] * deg_inv_sqrt[col]
 
         # Step 4-5: Start propagating messages.

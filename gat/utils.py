@@ -29,6 +29,11 @@ def load_data(path="../dataset/cora/", dataset="cora"):
     # 将edges转为[2, edge]的形式
     edges = edges.iloc[:,0:2].values.flatten('F').reshape(2, -1)
     
+    # 另一方法
+    # row = edges.iloc[:,0:2].values[:, 0]
+    # col = edges.iloc[:,0:2].values[:, 1]
+    # edges = np.stack([row, col], axis=0)
+    
     # 稀疏格式邻接表表示邻接矩阵 单向
     adj = sp.coo_matrix((np.ones(edges.shape[1]), (edges[0, :], edges[1, :])),
                         shape=(labels.shape[0], labels.shape[0]),
