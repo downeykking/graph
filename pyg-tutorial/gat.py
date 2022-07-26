@@ -1,3 +1,4 @@
+from utils import *
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,34 +15,38 @@ import matplotlib.pyplot as plt
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # hyper-parameters
-num_epochs = 50
+num_epochs = 3
 seed = 2022
 
 # dataset
 dataset = Planetoid(root='./data/Cora', name='Cora')
 
 # dataloader 小图 所以直接使用一整个batch
-# Data(x=[2708, 1433], edge_index=[2, 10556], 
+# Data(x=[2708, 1433], edge_index=[2, 10556],
 # y=[2708], train_mask=[2708], val_mask=[2708], test_mask=[2708])
 data = dataset[0]
 
-from utils import *
 fix_seed(seed)
 
 # model
+
+
 class GAT(nn.Module):
     def __init__(self, input_dim, hidden, output_dim, dropout=0.5):
         super(GAT, self).__init__()
-
+        # if heads > 1, then out_channels should be output_dim // heads
         self.conv1 = GATConv(in_channels=input_dim, out_channels=hidden)
         self.conv2 = GATConv(in_channels=hidden, out_channels=output_dim)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, edge_index):
+        print(x.size())
         out = self.conv1(x, edge_index)
+        print(out.size())
         out = F.relu(out)
         out = self.dropout(out)
         out = self.conv2(out, edge_index)
+        print(out.size())
         return out
 
 
