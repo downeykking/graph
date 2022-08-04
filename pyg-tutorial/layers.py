@@ -46,7 +46,7 @@ class SAGEConv(MessagePassing):
                 edge_t: Tensor = None):
 
         x_j = self.propagate(edge_index, x=x, edge_attr=edge_attr)
-        # print(x_j)
+        print(x_j)
         # x_j = self.lin_l(x_j)
         # x_i = self.lin_r(x)
         x_j = x_j
@@ -58,10 +58,10 @@ class SAGEConv(MessagePassing):
             out = F.normalize(out, p=2., dim=-1)
         return out
 
-    def message(self, x_j: Tensor, edge_attr_j) -> Tensor:
+    def message(self, x_j: Tensor, edge_attr) -> Tensor:
         # print(x_j)
         # has beed reduced by scatter and is_sorted
-        return torch.cat([x_j, edge_attr_j], dim=1)
+        return torch.cat([x_j, edge_attr], dim=1)
         # x_j = torch_scatter.scatter(x[j], row, dim=0, dim_size=x.size(0), reduce='mean')
 
 
