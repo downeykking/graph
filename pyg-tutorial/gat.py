@@ -40,13 +40,10 @@ class GAT(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, edge_index):
-        print(x.size())
         out = self.conv1(x, edge_index)
-        print(out.size())
         out = F.relu(out)
         out = self.dropout(out)
         out = self.conv2(out, edge_index)
-        print(out.size())
         return out
 
 

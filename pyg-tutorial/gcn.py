@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # hyper-parameters
-num_epochs = 50
+num_epochs = 200
 seed = 2022
 
 # dataset
