@@ -17,6 +17,8 @@ import math
 from torch_geometric.typing import Adj, OptPairTensor, Size
 from torch_geometric.nn import MessagePassing
 
+from torch_geometric.nn import aggr
+
 
 # Inductive Representation Learning on Large Graphs, see <https://arxiv.org/abs/1706.02216>
 class SAGEConv(MessagePassing):
@@ -122,6 +124,8 @@ class TransformerConv(MessagePassing):
 class GATConv(MessagePassing):
     def __init__(self, in_channels, out_channels, edge_dim, head=8, bias=True, concat=True):
         super(GATConv, self).__init__(aggr='add', node_dim=0)
+        # a new feature 'aggr', see 'https://pytorch-geometric.readthedocs.io/en/2.1.0/modules/nn.html#aggregation-operators'
+        # super(GATConv, self).__init__(aggr=aggr.SumAggregation(), node_dim=0)
 
         self.W_src = nn.Linear(in_channels, out_channels * head, bias=bias)
         self.W_dst = nn.Linear(in_channels, out_channels * head, bias=bias)
@@ -177,4 +181,4 @@ out = TransformerConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge
 out2 = SAGEConv(in_channels=1, out_channels=4, edge_dim=1)(x, edge_index, edge_features)
 out3 = GATConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
 
-print(out3)
+# print(out3)
