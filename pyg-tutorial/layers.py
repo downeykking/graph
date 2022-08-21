@@ -1,3 +1,4 @@
+from torch_geometric.nn.conv.gcn_conv import gcn_norm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -163,6 +164,31 @@ class GATConv(MessagePassing):
         return alpha.unsqueeze(-1) * x_j
 
 
+class APPNP(MessagePassing):
+    def __init__(self, K, alpha, dropout):
+        super(APPNP, self).__init__(aggr='add', node_dim=0)
+        self.K = K
+        self.alpha = alpha
+        self.dropout = dropout
+
+    def forward(self, x, edge_index):
+
+        edge_index, edge_weight = gcn_norm(edge_index)
+
+        h = x
+        for _ in range(self.K):
+            edge_weight = F.dropout(edge_weight, p=self.dropout)
+
+            x = self.propagate(edge_index, x=x, edge_weight=edge_weight)
+
+            x = x * (1 - self.alpha) + h * self.alpha
+
+        return x
+
+    def message(self, x_j, edge_weight):
+        return x_j if edge_weight is None else edge_weight.view(-1, 1) * x_j
+
+
 x = torch.tensor([[0.5],
                  [2.5],
                   [3.5],
@@ -180,5 +206,5 @@ edge_index, edge_features = sort_edge_index(edge_index, edge_attr=edge_features,
 out = TransformerConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
 out2 = SAGEConv(in_channels=1, out_channels=4, edge_dim=1)(x, edge_index, edge_features)
 out3 = GATConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
-
-# print(out3)
+out4 = APPNP(K=10, alpha=2, dropout=0.5)(x, edge_index)
+print(out4)
