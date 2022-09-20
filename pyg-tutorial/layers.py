@@ -189,12 +189,45 @@ class APPNP(MessagePassing):
         return x_j if edge_weight is None else edge_weight.view(-1, 1) * x_j
 
 
+class GINConv(MessagePassing):
+    def __init__(self, nn, eps=0.0, train_eps=False):
+
+        super(GINConv, self).__init__(aggr='sum', node_dim=0)
+        self.nn = nn
+        self.initial_eps = eps
+        self.train_eps = train_eps
+
+        if train_eps:
+            self.eps = torch.nn.Parameter(torch.Tensor([eps]))
+        else:
+            self.register_buffer('eps', torch.Tensor([eps]))
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        self.eps.data.fill_(self.initial_eps)
+
+    def forward(self, x, edge_index):
+        x_j = self.propagate(edge_index, x=x)
+        out = (1 + self.eps) * x + x_j
+        return self.nn(out)
+
+    def message(self, x_j):
+        return x_j
+
+    # is same to the above code
+    # def forward(self, x, edge_index):
+    #     row, col = edge_index
+    #     x_j = scatter(x[row], index=col, dim=0, dim_size=x.size(0), reduce='sum')
+    #     out = (1 + self.eps) * x + x_j
+    #     return self.nn(out)
+
+
 x = torch.tensor([[0.5],
                  [2.5],
                   [3.5],
                   [14.5]])
 
-seed_everything(42)
 edge_index = torch.tensor([[0, 0, 1, 1, 3],
                            [1, 2, 0, 2, 1]])
 
@@ -203,8 +236,17 @@ edge_features = torch.FloatTensor([0, 1, 2, 3, 4]).reshape(-1, 1)
 
 edge_index, edge_features = sort_edge_index(edge_index, edge_attr=edge_features, num_nodes=edge_index[0].max().item() + 1)
 
-out = TransformerConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
-out2 = SAGEConv(in_channels=1, out_channels=4, edge_dim=1)(x, edge_index, edge_features)
-out3 = GATConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
-out4 = APPNP(K=10, alpha=2, dropout=0.5)(x, edge_index)
-print(out4)
+# out = TransformerConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
+# out2 = SAGEConv(in_channels=1, out_channels=4, edge_dim=1)(x, edge_index, edge_features)
+# out3 = GATConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
+# out4 = APPNP(K=10, alpha=2, dropout=0.5)(x, edge_index)
+# out5 = GINConv()
+
+
+def ginconv(input_dim, out_dim):
+    return GINConv(nn=nn.Sequential(nn.Linear(input_dim, out_dim), nn.ReLU(), nn.Linear(out_dim, out_dim)))
+
+
+seed_everything(22)
+g = ginconv(1, 1)(x, edge_index)
+print(g)
