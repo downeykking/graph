@@ -69,7 +69,7 @@ class SAGEConv(MessagePassing):
 
 # Masked Label Prediction: Unified Message Passing Model for Semi-Supervised Classification, see <https://arxiv.org/abs/2009.03509>
 class TransformerConv(MessagePassing):
-    def __init__(self, in_channels, out_channels, edge_dim, head=8, bias=True, concat=True):
+    def __init__(self, in_channels, out_channels, edge_dim, head=8, bias=True, beta=True, concat=True):
         super(TransformerConv, self).__init__(aggr='add', node_dim=0)
 
         self.Wq = nn.Linear(in_channels, out_channels * head, bias=bias)
@@ -81,6 +81,8 @@ class TransformerConv(MessagePassing):
         self.out_channels = out_channels
         self.concat = concat
         self.scale = math.sqrt(self.out_channels)
+        self.lin_skip = nn.Linear(in_channels, head * out_channels, bias=bias)
+        self.lin_beta = nn.Linear(3 * head * out_channels, 1, bias=False)
 
     def forward(self, x, edge_index, edge_features):
 
@@ -95,6 +97,11 @@ class TransformerConv(MessagePassing):
             out = out.view(-1, self.head * self.out_channels)
         else:
             out = out.mean(dim=1)
+
+        x_skip = self.lin_skip(x)
+        beta = self.lin_beta(torch.cat([out, x_skip, out - x_skip], dim=-1))
+        beta = beta.sigmoid()
+        out = (1 - beta) * out + beta * x_skip
 
         return out
 
@@ -208,9 +215,15 @@ class GINConv(MessagePassing):
         self.eps.data.fill_(self.initial_eps)
 
     def forward(self, x, edge_index):
-        x_j = self.propagate(edge_index, x=x)
+        row, col = edge_index
+        x_j = scatter(x[row], index=col, dim=0, dim_size=x.size(0), reduce='sum')
         out = (1 + self.eps) * x + x_j
         return self.nn(out)
+
+    # def forward(self, x, edge_index):
+    #     x_j = self.propagate(edge_index, x=x)
+    #     out = (1 + self.eps) * x + x_j
+    #     return self.nn(out)
 
     def message(self, x_j):
         return x_j
@@ -236,7 +249,9 @@ edge_features = torch.FloatTensor([0, 1, 2, 3, 4]).reshape(-1, 1)
 
 edge_index, edge_features = sort_edge_index(edge_index, edge_attr=edge_features, num_nodes=edge_index[0].max().item() + 1)
 
-# out = TransformerConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
+seed_everything(22)
+out = TransformerConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
+print(out)
 # out2 = SAGEConv(in_channels=1, out_channels=4, edge_dim=1)(x, edge_index, edge_features)
 # out3 = GATConv(in_channels=1, out_channels=4, head=2, edge_dim=1)(x, edge_index, edge_features)
 # out4 = APPNP(K=10, alpha=2, dropout=0.5)(x, edge_index)
@@ -247,6 +262,5 @@ def ginconv(input_dim, out_dim):
     return GINConv(nn=nn.Sequential(nn.Linear(input_dim, out_dim), nn.ReLU(), nn.Linear(out_dim, out_dim)))
 
 
-seed_everything(22)
 g = ginconv(1, 1)(x, edge_index)
 print(g)
