@@ -1,3 +1,10 @@
+## Introdcution
+In this repo, we implement some common graph convolutional neural network layers (GCN, GAT, GraphSAGE...)
+
+And in `layers`, we have two branchs: `pyg` and `pytorch`.
+Both ways implemented convolutional layers. 
+
+
 ## Usage
 
 ```
